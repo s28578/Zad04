@@ -4,68 +4,44 @@ namespace LegacyApp
 {
     public class UserService
     {
+        private IClientRepository _clientRepository;
+        private IUserCreditService _userCreditService;
+        private IUserDataAcces _userDataAcces;
+
+        [Obsolete]
+        public UserService()
+        {
+            _clientRepository = new ClientRepository();
+            _userCreditService = new UserCreditService();
+            _userDataAcces = new UserDataAccesAdapter();
+        }
+        public UserService(IClientRepository clientRepository, IUserCreditService userCreditService, IUserDataAcces userDataAcces)
+        {
+            _clientRepository = clientRepository;
+            _userCreditService = userCreditService;
+            _userDataAcces = userDataAcces;
+        }
+
         public bool AddUser(string firstName, string lastName, string email, DateTime dateOfBirth, int clientId)
         {
-            if (string.IsNullOrEmpty(firstName) || string.IsNullOrEmpty(lastName))
+            if (UserValidation.CheckIfNamesNull(firstName, lastName) || !UserValidation.CheckIfEmailCorrect(email) ||
+                !UserValidation.CheckIfAdult(dateOfBirth))
             {
                 return false;
             }
-
-            if (!email.Contains("@") && !email.Contains("."))
+            
+            var client = _clientRepository.GetById(clientId);
+            var user = User.CreateUser(client, dateOfBirth, email, firstName, lastName);
+            
+            _userCreditService.SetUsersCreditLimit(user);
+            
+            if (!UserValidation.CheckIfEnoughCreditLimit(user, 500))
             {
                 return false;
             }
-
-            var now = DateTime.Now;
-            int age = now.Year - dateOfBirth.Year;
-            if (now.Month < dateOfBirth.Month || (now.Month == dateOfBirth.Month && now.Day < dateOfBirth.Day)) age--;
-
-            if (age < 21)
-            {
-                return false;
-            }
-
-            var clientRepository = new ClientRepository();
-            var client = clientRepository.GetById(clientId);
-
-            var user = new User
-            {
-                Client = client,
-                DateOfBirth = dateOfBirth,
-                EmailAddress = email,
-                FirstName = firstName,
-                LastName = lastName
-            };
-
-            if (client.Type == "VeryImportantClient")
-            {
-                user.HasCreditLimit = false;
-            }
-            else if (client.Type == "ImportantClient")
-            {
-                using (var userCreditService = new UserCreditService())
-                {
-                    int creditLimit = userCreditService.GetCreditLimit(user.LastName, user.DateOfBirth);
-                    creditLimit = creditLimit * 2;
-                    user.CreditLimit = creditLimit;
-                }
-            }
-            else
-            {
-                user.HasCreditLimit = true;
-                using (var userCreditService = new UserCreditService())
-                {
-                    int creditLimit = userCreditService.GetCreditLimit(user.LastName, user.DateOfBirth);
-                    user.CreditLimit = creditLimit;
-                }
-            }
-
-            if (user.HasCreditLimit && user.CreditLimit < 500)
-            {
-                return false;
-            }
-
-            UserDataAccess.AddUser(user);
+            
+            _userDataAcces.AddUser(user);
+            
             return true;
         }
     }

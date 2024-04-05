@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace LegacyApp
 {
-    public class UserCreditService : IDisposable
+    public class UserCreditService : IDisposable, IUserCreditService
     {
         /// <summary>
         /// Simulating database
@@ -37,6 +37,34 @@ namespace LegacyApp
                 return _database[lastName];
 
             throw new ArgumentException($"Client {lastName} does not exist");
+        }
+
+        int IUserCreditService.GetCreditLimit(string lastName, DateTime dateOfBirth)
+        {
+            return GetCreditLimit(lastName, dateOfBirth);
+        }
+        
+        void IUserCreditService.SetUsersCreditLimit(User user)
+        {
+            if (user.Client.Type == "VeryImportantClient")
+            {
+                user.HasCreditLimit = false;
+            }
+            else if (user.Client.Type == "ImportantClient")
+            {
+            
+                int creditLimit = GetCreditLimit(user.LastName, user.DateOfBirth);
+                creditLimit = creditLimit * 2;
+                user.CreditLimit = creditLimit;
+            
+            }
+            else
+            {
+                user.HasCreditLimit = true;
+                int creditLimit = GetCreditLimit(user.LastName, user.DateOfBirth);
+                user.CreditLimit = creditLimit;
+            
+            }
         }
     }
 }

@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace LegacyApp
 {
-    public class ClientRepository
+    public class ClientRepository : IClientRepository
     {
         /// <summary>
         /// This collection is used to simulate remote database
@@ -36,6 +36,11 @@ namespace LegacyApp
                 return Database[clientId];
 
             throw new ArgumentException($"User with id {clientId} does not exist in database");
+        }
+
+        Client IClientRepository.GetById(int idClient)
+        {
+            return GetById(idClient);
         }
     }
 }
